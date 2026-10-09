@@ -111,13 +111,26 @@ export function buildMonthGrid(
 }
 
 /**
- * Returns a CSS heat level class depending on the daily fire count.
+ * Returns a CSS heat level class for clean scientific light theme.
  */
-export function getHeatClass(count: number, hasData: boolean = true): string {
-  if (!hasData) return 'bg-slate-900/40 text-slate-600 border-dashed border-slate-800'; // Missing/no coverage
-  if (count === 0) return 'bg-slate-900/80 text-slate-400 border-slate-800/80 hover:border-slate-700'; // Zero fires
-  if (count <= 5) return 'bg-amber-950/40 text-amber-300 border-amber-900/50 hover:border-amber-700'; // Low
-  if (count <= 15) return 'bg-orange-950/60 text-orange-300 border-orange-800/70 hover:border-orange-600'; // Moderate
-  if (count <= 35) return 'bg-orange-900/80 text-orange-100 border-orange-600 hover:border-orange-500'; // High
-  return 'bg-red-900/90 text-red-100 border-red-500 shadow-sm shadow-red-900/50 hover:border-red-400'; // Critical surge
+export function getHeatClass(count: number, hasData: boolean = true, isUnavailable: boolean = false): string {
+  if (isUnavailable) {
+    return 'bg-slate-100/60 text-slate-400 border-dashed border-slate-200 hover:border-slate-300';
+  }
+  if (!hasData) {
+    return 'bg-slate-100 text-slate-500 border-dashed border-slate-300 hover:border-slate-400';
+  }
+  if (count === 0) {
+    return 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 shadow-xs';
+  }
+  if (count <= 5) {
+    return 'bg-amber-50 text-amber-900 border-amber-200 hover:border-amber-300';
+  }
+  if (count <= 15) {
+    return 'bg-amber-100 text-amber-950 border-amber-300 hover:border-amber-400';
+  }
+  if (count <= 35) {
+    return 'bg-orange-100 text-orange-950 border-orange-300 hover:border-orange-400 font-medium';
+  }
+  return 'bg-rose-100 text-rose-950 border-rose-400 hover:border-rose-500 font-semibold shadow-xs';
 }

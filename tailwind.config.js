@@ -7,28 +7,40 @@ export default {
   theme: {
     extend: {
       colors: {
-        fire: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
-          950: '#431407',
+        scientific: {
+          teal: {
+            50: '#f0fdfa',
+            100: '#ccfbf1',
+            200: '#99f6e4',
+            500: '#14b8a6',
+            600: '#0d9488',
+            700: '#0f766e',
+            800: '#115e59',
+            900: '#134e4a',
+          },
+          slate: {
+            50: '#f8fafc',
+            100: '#f1f5f9',
+            200: '#e2e8f0',
+            300: '#cbd5e1',
+            400: '#94a3b8',
+            500: '#64748b',
+            600: '#475569',
+            700: '#334155',
+            800: '#1e293b',
+            900: '#0f172a',
+          }
         },
         satellite: {
-          modis: '#f59e0b', // Amber/gold for MODIS
-          viirs: '#06b6d4', // Cyan/electric blue for VIIRS
-          cluster: '#ec4899', // Magenta/pink for Harmonized clusters
-          dual: '#8b5cf6', // Violet/purple for dual-confirmed
+          modis: '#d97706',    // Restrained amber-600
+          viirs: '#0284c7',    // Restrained sky-600
+          cluster: '#7c3aed',  // Restrained violet-600
+          dual: '#6d28d9',     // Violet-700
         }
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       }
     },
   },

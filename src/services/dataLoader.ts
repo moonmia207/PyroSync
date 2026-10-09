@@ -54,6 +54,9 @@ export const DATASET_METADATA: Record<string, DatasetMetadata> = {
     retrievalDate: 'May 2024 Archive Export',
     coveragePeriod: 'February 1, 2024 – April 30, 2024 (Peak Dry Season)',
     geographicScope: 'Myanmar (Shan Highlands, Bago/Dry Zone) & Chiang Mai Transboundary',
+    earliestDate: '2024-02-01',
+    latestDate: '2024-04-30',
+    totalObservations: 2768,
     limitations: 'Curated historical sample structured for demonstration of harmonization and calendar heatmap workflows. Does not represent real-time live emergency telemetry.',
   },
   'synthetic-demo': {
@@ -64,6 +67,9 @@ export const DATASET_METADATA: Record<string, DatasetMetadata> = {
     retrievalDate: 'October 2026',
     coveragePeriod: 'March 1, 2024 – March 31, 2024',
     geographicScope: 'Simulated 1km and sub-pixel hotspots within test coordinates',
+    earliestDate: '2024-03-01',
+    latestDate: '2024-03-31',
+    totalObservations: 3,
     limitations: 'COMPLETELY SYNTHETIC. Contains simulated multi-sensor collocations to test clustering edge cases. Not actual NASA observations.',
   },
 };

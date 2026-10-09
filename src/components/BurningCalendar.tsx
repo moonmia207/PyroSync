@@ -1,6 +1,6 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Flame, AlertTriangle } from 'lucide-react';
-import type { DailySummary } from '../types/fire';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Flame, AlertCircle } from 'lucide-react';
+import type { DailySummary, DatasetMetadata } from '../types/fire';
 import { buildMonthGrid, formatMonthYear, getHeatClass } from '../utils/dateUtils';
 
 interface BurningCalendarProps {
@@ -11,6 +11,8 @@ interface BurningCalendarProps {
   onSelectDate: (dateStr: string) => void;
   dailySummariesMap: Map<string, DailySummary>;
   criticalThreshold: number;
+  metadata: DatasetMetadata;
+  onJumpToCoverage: () => void;
 }
 
 export const BurningCalendar: React.FC<BurningCalendarProps> = ({
@@ -21,60 +23,85 @@ export const BurningCalendar: React.FC<BurningCalendarProps> = ({
   onSelectDate,
   dailySummariesMap,
   criticalThreshold,
+  metadata,
+  onJumpToCoverage,
 }) => {
   const weeks = buildMonthGrid(year, month, dailySummariesMap);
 
   const handlePrevMonth = () => {
-    if (month === 1) {
-      onChangeMonth(year - 1, 12);
-    } else {
-      onChangeMonth(year, month - 1);
-    }
+    if (month === 1) onChangeMonth(year - 1, 12);
+    else onChangeMonth(year, month - 1);
   };
 
   const handleNextMonth = () => {
-    if (month === 12) {
-      onChangeMonth(year + 1, 1);
-    } else {
-      onChangeMonth(year, month + 1);
-    }
+    if (month === 12) onChangeMonth(year + 1, 1);
+    else onChangeMonth(year, month + 1);
   };
 
   const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+  // Check if current month has any active data loaded
+  const currentMonthHasData = Array.from(dailySummariesMap.values()).some(
+    d => d.year === year && d.month === month && d.hasData && !d.isUnavailable
+  );
+
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col justify-between h-full">
+    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs flex flex-col justify-between h-full">
       {/* Calendar Header with Navigation */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400">
-            <CalendarIcon className="w-5 h-5" />
+          <div className="p-1.5 rounded-md bg-teal-50 border border-teal-200 text-scientific-teal-700">
+            <CalendarIcon className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">
               Burning Activity Calendar
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Daily active fire intensity & multi-sensor counts
             </p>
           </div>
         </div>
 
-        {/* Month Navigator */}
-        <div className="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 rounded-lg p-1">
+        {/* Year / Month Stepper Controls */}
+        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-md p-1">
           <button
             onClick={handlePrevMonth}
-            className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer"
+            className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 rounded transition cursor-pointer"
             title="Previous Month"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-xs font-semibold px-2 text-slate-200 min-w-[110px] text-center">
-            {formatMonthYear(year, month)}
-          </span>
+
+          {/* Month Dropdown */}
+          <select
+            value={month}
+            onChange={(e) => onChangeMonth(year, parseInt(e.target.value, 10))}
+            className="bg-transparent text-xs font-semibold text-slate-800 px-1 py-0.5 focus:outline-none cursor-pointer"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {new Date(2000, m - 1).toLocaleString('en-US', { month: 'short' })}
+              </option>
+            ))}
+          </select>
+
+          {/* Year Dropdown */}
+          <select
+            value={year}
+            onChange={(e) => onChangeMonth(parseInt(e.target.value, 10), month)}
+            className="bg-transparent text-xs font-semibold text-slate-800 px-1 py-0.5 focus:outline-none cursor-pointer"
+          >
+            {[2020, 2021, 2022, 2023, 2024, 2025, 2026].map((yr) => (
+              <option key={yr} value={yr}>
+                {yr}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={handleNextMonth}
-            className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer"
+            className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 rounded transition cursor-pointer"
             title="Next Month"
           >
             <ChevronRight className="w-4 h-4" />
@@ -82,44 +109,63 @@ export const BurningCalendar: React.FC<BurningCalendarProps> = ({
         </div>
       </div>
 
+      {/* Dataset Range Context Notice */}
+      {!currentMonthHasData && (
+        <div className="bg-slate-50 border border-slate-200 rounded p-2.5 mb-2.5 text-xs flex items-center justify-between text-slate-600">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+            <span>
+              No observations loaded for {formatMonthYear(year, month)}. (Dataset covers {metadata.earliestDate} to {metadata.latestDate})
+            </span>
+          </div>
+          <button
+            onClick={onJumpToCoverage}
+            className="text-scientific-teal-700 hover:text-scientific-teal-800 font-medium underline text-xs ml-2 cursor-pointer"
+          >
+            Jump to Active Period
+          </button>
+        </div>
+      )}
+
       {/* Weekday Labels */}
-      <div className="grid grid-cols-7 gap-1.5 text-center mb-1.5">
+      <div className="grid grid-cols-7 gap-1 text-center mb-1">
         {dayHeaders.map((day) => (
-          <div key={day} className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-1">
+          <div key={day} className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider py-0.5">
             {day}
           </div>
         ))}
       </div>
 
       {/* Calendar Heatmap Grid */}
-      <div className="grid grid-cols-7 gap-1.5 flex-1">
+      <div className="grid grid-cols-7 gap-1 flex-1">
         {weeks.map((week, wIdx) =>
           week.map((cell, cIdx) => {
             const isSelected = cell.dateStr === selectedDateStr;
             const summary = cell.summary;
             const clusterCount = summary ? summary.clusterCount : 0;
             const hasData = summary ? summary.hasData : false;
+            const isUnavailable = summary ? Boolean(summary.isUnavailable) : true;
             const isUnusual = summary?.isUnusual;
-            const heatClass = getHeatClass(clusterCount, hasData);
+            const heatClass = getHeatClass(clusterCount, hasData, isUnavailable);
 
             return (
               <button
                 key={`${wIdx}-${cIdx}`}
                 onClick={() => onSelectDate(cell.dateStr)}
                 disabled={!cell.isCurrentMonth}
-                className={`group relative p-1.5 rounded-lg border text-left transition flex flex-col justify-between min-h-[64px] ${heatClass} ${
+                className={`group relative p-1 rounded border text-left transition flex flex-col justify-between min-h-[60px] ${heatClass} ${
                   !cell.isCurrentMonth
-                    ? 'opacity-20 cursor-not-allowed bg-slate-950/30 border-transparent'
+                    ? 'opacity-25 cursor-not-allowed bg-slate-50/50 border-transparent'
                     : isSelected
-                    ? 'ring-2 ring-orange-400 border-orange-400 shadow-md shadow-orange-500/20 scale-[1.02] z-10 cursor-pointer'
-                    : 'hover:scale-[1.01] cursor-pointer'
+                    ? 'ring-2 ring-scientific-teal-700 border-scientific-teal-700 shadow-sm z-10 cursor-pointer'
+                    : 'cursor-pointer'
                 }`}
               >
                 {/* Day Number and Surge Badge */}
                 <div className="flex items-center justify-between w-full">
                   <span
-                    className={`text-xs font-mono font-bold ${
-                      isSelected ? 'text-white' : cell.isCurrentMonth ? 'text-slate-300' : 'text-slate-600'
+                    className={`text-xs font-mono font-semibold ${
+                      isSelected ? 'text-slate-900 font-bold' : cell.isCurrentMonth ? 'text-slate-700' : 'text-slate-400'
                     }`}
                   >
                     {cell.dayNumber}
@@ -128,33 +174,33 @@ export const BurningCalendar: React.FC<BurningCalendarProps> = ({
                   {cell.isCurrentMonth && isUnusual && (
                     <span
                       title="Statistical Surge: Hotspot frequency significantly above baseline"
-                      className="flex items-center text-[10px] text-amber-300 bg-amber-500/20 px-1 rounded animate-pulse"
+                      className="text-[9px] font-mono px-1 rounded bg-rose-600 text-white font-medium"
                     >
-                      <AlertTriangle className="w-2.5 h-2.5 mr-0.5 text-amber-400" />
                       Surge
                     </span>
                   )}
                 </div>
 
-                {/* Fire Count & Multi-sensor mini tag */}
+                {/* Fire Count & Sensor Breakdown */}
                 {cell.isCurrentMonth && (
                   <div className="mt-1">
-                    {!hasData ? (
-                      <span className="text-[10px] font-mono text-slate-500 italic">No Data</span>
+                    {isUnavailable ? (
+                      <span className="text-[9px] font-mono text-slate-400 italic">No data</span>
+                    ) : !hasData ? (
+                      <span className="text-[9px] font-mono text-slate-400 italic">No pass</span>
                     ) : clusterCount === 0 ? (
-                      <span className="text-[10px] font-mono text-slate-500">0 fires</span>
+                      <span className="text-[9px] font-mono text-slate-400">0 fires</span>
                     ) : (
                       <div>
-                        <div className="flex items-center gap-1 font-mono text-xs font-semibold leading-tight">
-                          <Flame className="w-3 h-3 text-orange-400" />
+                        <div className="flex items-center gap-1 font-mono text-xs font-semibold leading-tight text-slate-800">
+                          <Flame className="w-3 h-3 text-amber-600" />
                           <span>{clusterCount}</span>
-                          <span className="text-[9px] font-normal text-slate-400">clusters</span>
+                          <span className="text-[9px] font-normal text-slate-500">cl.</span>
                         </div>
-                        {/* Breakdown pills */}
-                        <div className="flex items-center gap-1 mt-0.5 text-[9px] font-mono text-slate-400">
-                          <span className="text-amber-400" title="MODIS detections">M:{summary?.modisCount || 0}</span>
+                        <div className="flex items-center gap-1 mt-0.5 text-[8px] font-mono text-slate-500">
+                          <span className="text-amber-700 font-semibold" title="MODIS detections">M:{summary?.modisCount || 0}</span>
                           <span>/</span>
-                          <span className="text-cyan-400" title="VIIRS detections">V:{summary?.viirsCount || 0}</span>
+                          <span className="text-sky-700 font-semibold" title="VIIRS detections">V:{summary?.viirsCount || 0}</span>
                         </div>
                       </div>
                     )}
@@ -167,37 +213,37 @@ export const BurningCalendar: React.FC<BurningCalendarProps> = ({
       </div>
 
       {/* Legend & Summary Info */}
-      <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+      <div className="mt-3 pt-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-300">Heat Level:</span>
+          <span className="font-medium text-slate-700">Activity Level:</span>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-slate-900 border border-slate-800" title="Zero Detections"></span>
+            <span className="w-3 h-3 rounded bg-white border border-slate-200" title="Zero Detections"></span>
             <span className="text-[10px]">0</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-amber-950/60 border border-amber-900" title="1-5 fires"></span>
+            <span className="w-3 h-3 rounded bg-amber-50 border border-amber-200" title="1-5 fires"></span>
             <span className="text-[10px]">1-5</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-orange-950/70 border border-orange-800" title="6-15 fires"></span>
+            <span className="w-3 h-3 rounded bg-amber-100 border border-amber-300" title="6-15 fires"></span>
             <span className="text-[10px]">6-15</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-orange-900 border border-orange-600" title="16-35 fires"></span>
+            <span className="w-3 h-3 rounded bg-orange-100 border border-orange-300" title="16-35 fires"></span>
             <span className="text-[10px]">16-35</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-3.5 h-3.5 rounded bg-red-900 border border-red-500" title="36+ fires (Critical)"></span>
-            <span className="text-[10px] text-red-300 font-semibold">&gt;35</span>
+            <span className="w-3 h-3 rounded bg-rose-100 border border-rose-400" title="36+ fires (Critical)"></span>
+            <span className="text-[10px] text-rose-800 font-semibold">&gt;35</span>
           </div>
           <div className="flex items-center gap-1 ml-1.5">
-            <span className="w-3.5 h-3.5 rounded bg-slate-950 border border-dashed border-slate-800" title="No Coverage / Cloud Blocked"></span>
-            <span className="text-[10px] text-slate-500">No pass</span>
+            <span className="w-3 h-3 rounded bg-slate-100 border border-dashed border-slate-300" title="Data Not Loaded / Satellite Gap"></span>
+            <span className="text-[10px] text-slate-400">Unavailable</span>
           </div>
         </div>
 
-        <div className="text-[10px] text-slate-400 font-mono">
-          Threshold: &gt;{criticalThreshold} fires = Unusual condition
+        <div className="text-[10px] text-slate-500 font-mono">
+          Surge threshold: {criticalThreshold > 0 ? `>${criticalThreshold} clusters` : 'N/A'}
         </div>
       </div>
     </div>

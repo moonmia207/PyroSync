@@ -1,7 +1,7 @@
 // PyroSync: Type definitions for satellite active fire observations and harmonized clusters
 
-export type SatelliteSource = 'Terra' | 'Aqua' | 'Suomi-NPP' | 'NOAA-20' | 'NOAA-21';
-export type InstrumentType = 'MODIS' | 'VIIRS';
+export type SatelliteSource = 'Terra' | 'Aqua' | 'Suomi-NPP' | 'NOAA-20' | 'NOAA-21' | string;
+export type InstrumentType = 'MODIS' | 'VIIRS' | string;
 export type ConfidenceLevel = 'low' | 'nominal' | 'high';
 
 /**
@@ -21,8 +21,9 @@ export interface RawHotspot {
   brightness: number;        // Kelvin (MODIS Ch 21/22 or VIIRS I4)
   bright_t31?: number;       // Kelvin (MODIS Ch 31 or VIIRS I5)
   frp: number;               // Fire Radiative Power in Megawatts (MW)
-  daynight: 'D' | 'N';       // Day ('D') or Night ('N') pass
+  daynight: 'D' | 'N' | string;       // Day ('D') or Night ('N') pass
   area_id?: string;          // Area of interest identifier
+  cluster_id?: string;       // Assigned cluster ID if harmonized
 }
 
 /**
@@ -59,7 +60,8 @@ export interface DailySummary {
   totalFrp: number;
   isUnusual: boolean;        // Flagged if exceeding baseline threshold
   anomalyScore: number;      // Standard deviations above baseline mean
-  hasData: boolean;          // False if instrument coverage was missing/not recorded
+  hasData: boolean;          // True if observations are recorded or satellite pass confirmed
+  isUnavailable?: boolean;   // True if the date lies outside loaded dataset
 }
 
 /**
@@ -89,15 +91,36 @@ export interface HarmonizationConfig {
 }
 
 /**
+ * Statistical Baseline Analysis.
+ */
+export interface BaselineAnalysis {
+  meanDailyCount: number;
+  stdDev: number;
+  thresholdCount: number; // Mean + 1.5 * StdDev
+  criticalThresholdCount: number; // Mean + 2.0 * StdDev
+  totalObservationDays: number;
+  daysWithFire: number;
+  unusualDaysCount: number;
+  maxDayCount: number;
+  maxDate: string;
+  isBaselineSufficient: boolean; // Requires at least 14 days of valid observation
+  baselinePeriod: string;
+  methodDescription: string;
+}
+
+/**
  * Provenance metadata for loaded datasets.
  */
 export interface DatasetMetadata {
   id: string;
   name: string;
-  provenanceType: 'authentic_archive' | 'synthetic_demo';
+  provenanceType: 'authentic_archive' | 'user_import' | 'synthetic_demo';
   sourceCitation: string;
   retrievalDate: string;
   coveragePeriod: string;
   geographicScope: string;
+  earliestDate: string;
+  latestDate: string;
+  totalObservations: number;
   limitations: string;
 }

@@ -1,41 +1,40 @@
-import type { DailySummary } from '../types/fire';
+import type { DailySummary, BaselineAnalysis } from '../types/fire';
 
-export interface BaselineAnalysis {
-  meanDailyCount: number;
-  stdDev: number;
-  thresholdCount: number; // Mean + 1.5 * StdDev
-  criticalThresholdCount: number; // Mean + 2.0 * StdDev
-  totalObservationDays: number;
-  daysWithFire: number;
-  unusualDaysCount: number;
-  maxDayCount: number;
-  maxDate: string;
-}
+const MIN_BASELINE_DAYS = 14;
 
 /**
  * Computes baseline statistical indicators across daily summaries to identify unusual conditions.
  * 
- * METHODOLOGY EXPLANATION:
- * The baseline uses a parametric standard deviation threshold (Z-score >= 1.5) on daily harmonized counts.
+ * SCIENTIFIC METHODOLOGY:
+ * Uses a parametric standard deviation threshold (Z-score >= 1.5) on daily harmonized counts,
+ * strictly conditioned on having at least 14 days of active observation data.
  * 
- * SCIENTIFIC LIMITATION:
+ * SCIENTIFIC LIMITATIONS:
  * An elevated statistical indicator reflects detection frequencies significantly higher than 
  * the sample average. It DOES NOT prove an emergency crisis or confirm ground-truth burn severity,
- * as clearing cloud cover, orbital pass geometry, or controlled agricultural burning can cause rapid spikes.
+ * as cloud clearing, orbital pass geometry, or controlled agricultural burning can cause rapid spikes.
  */
 export function calculateBaseline(dailySummaries: DailySummary[]): BaselineAnalysis {
-  const activeDays = dailySummaries.filter(d => d.hasData);
-  if (activeDays.length === 0) {
+  const activeDays = dailySummaries.filter(d => d.hasData && !d.isUnavailable);
+  
+  if (activeDays.length < MIN_BASELINE_DAYS) {
+    const counts = activeDays.map(d => d.clusterCount);
+    const sum = counts.reduce((acc, c) => acc + c, 0);
+    const mean = activeDays.length > 0 ? Math.round((sum / activeDays.length) * 10) / 10 : 0;
+    
     return {
-      meanDailyCount: 0,
+      meanDailyCount: mean,
       stdDev: 0,
       thresholdCount: 0,
       criticalThresholdCount: 0,
-      totalObservationDays: 0,
-      daysWithFire: 0,
+      totalObservationDays: activeDays.length,
+      daysWithFire: activeDays.filter(d => d.clusterCount > 0).length,
       unusualDaysCount: 0,
-      maxDayCount: 0,
+      maxDayCount: counts.length > 0 ? Math.max(...counts) : 0,
       maxDate: '',
+      isBaselineSufficient: false,
+      baselinePeriod: activeDays.length > 0 ? `${activeDays[0].date} to ${activeDays[activeDays.length - 1].date}` : 'None',
+      methodDescription: `Insufficient observation days (${activeDays.length}/${MIN_BASELINE_DAYS} required) to calculate a statistically valid anomaly baseline.`,
     };
   }
 
@@ -43,7 +42,7 @@ export function calculateBaseline(dailySummaries: DailySummary[]): BaselineAnaly
   const sum = counts.reduce((acc, c) => acc + c, 0);
   const mean = sum / activeDays.length;
 
-  const variance = counts.reduce((acc, c) => acc + Math.pow(c - mean, 2), 0) / (activeDays.length > 1 ? activeDays.length - 1 : 1);
+  const variance = counts.reduce((acc, c) => acc + Math.pow(c - mean, 2), 0) / (activeDays.length - 1);
   const stdDev = Math.sqrt(variance);
 
   const thresholdCount = Math.round((mean + 1.5 * stdDev) * 10) / 10;
@@ -65,6 +64,9 @@ export function calculateBaseline(dailySummaries: DailySummary[]): BaselineAnaly
     }
   }
 
+  const earliest = activeDays[0]?.date || '';
+  const latest = activeDays[activeDays.length - 1]?.date || '';
+
   return {
     meanDailyCount: Math.round(mean * 10) / 10,
     stdDev: Math.round(stdDev * 10) / 10,
@@ -75,5 +77,8 @@ export function calculateBaseline(dailySummaries: DailySummary[]): BaselineAnaly
     unusualDaysCount,
     maxDayCount,
     maxDate,
+    isBaselineSufficient: true,
+    baselinePeriod: `${earliest} to ${latest} (${activeDays.length} days)`,
+    methodDescription: `Parametric threshold (Mean + 1.5σ) calculated over ${activeDays.length} observation days. Baseline threshold = ${thresholdCount} clusters/day.`,
   };
 }

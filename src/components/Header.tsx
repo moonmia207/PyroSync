@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Satellite, Info, Sparkles } from 'lucide-react';
+import { Flame, Satellite, Info, Upload, CheckCircle2 } from 'lucide-react';
 import type { AreaOfInterest, DatasetMetadata } from '../types/fire';
 import { AREAS_OF_INTEREST } from '../services/dataLoader';
 
@@ -10,6 +10,7 @@ interface HeaderProps {
   activeDatasetId: string;
   onSelectDataset: (datasetId: string) => void;
   onOpenMethodology: () => void;
+  onOpenImport: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,38 +20,40 @@ export const Header: React.FC<HeaderProps> = ({
   activeDatasetId,
   onSelectDataset,
   onOpenMethodology,
+  onOpenImport,
 }) => {
   const isAuthentic = metadata.provenanceType === 'authentic_archive';
+  const isImported = metadata.provenanceType === 'user_import';
 
   return (
-    <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-red-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 ring-1 ring-orange-400/30">
-            <Flame className="w-6 h-6 text-white animate-pulse" />
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-2.5 shadow-2xs">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5">
+        {/* Brand & Purpose Statement */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-md bg-teal-50 border border-teal-200 text-scientific-teal-700 flex items-center justify-center">
+            <Flame className="w-5 h-5 text-amber-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
+              <h1 className="text-base font-bold tracking-tight text-slate-900">
                 PyroSync
               </h1>
-              <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-semibold">
-                NASA Space Apps v2.0
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
+                NASA Space Apps 2026
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Harmonized MODIS & VIIRS Burning Activity Calendar
+            <p className="text-[11px] text-slate-500">
+              Harmonized MODIS & VIIRS active fire observations for historical activity and unusual condition analysis
             </p>
           </div>
         </div>
 
-        {/* Controls & Badges */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-start md:justify-end">
+        {/* Control Strip */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
           {/* AOI Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700/70 rounded-lg px-2.5 py-1.5">
-            <Satellite className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs text-slate-400 font-medium">Area of Interest:</span>
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-xs">
+            <Satellite className="w-3.5 h-3.5 text-scientific-teal-700" />
+            <span className="text-slate-500 font-medium">AOI:</span>
             <select
               aria-label="Select Area of Interest"
               value={selectedAoi.id}
@@ -58,61 +61,80 @@ export const Header: React.FC<HeaderProps> = ({
                 const found = AREAS_OF_INTEREST.find(a => a.id === e.target.value);
                 if (found) onSelectAoi(found);
               }}
-              className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer"
+              className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer"
             >
               {AREAS_OF_INTEREST.map((aoi) => (
-                <option key={aoi.id} value={aoi.id} className="bg-slate-900 text-slate-200">
+                <option key={aoi.id} value={aoi.id} className="bg-white text-slate-800">
                   {aoi.name} ({aoi.country})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Dataset Provenance Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700/70 rounded-lg px-2.5 py-1.5">
+          {/* Dataset Selector */}
+          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs">
             <select
               aria-label="Select Dataset Source"
               value={activeDatasetId}
               onChange={(e) => onSelectDataset(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent text-slate-800 font-medium focus:outline-none cursor-pointer text-xs"
             >
-              <option value="firms-sample" className="bg-slate-900 text-slate-200">
-                NASA FIRMS Archive (Spring 2024)
+              <option value="firms-sample" className="bg-white text-slate-800">
+                NASA FIRMS Sample (Feb–Apr 2024)
               </option>
-              <option value="synthetic-demo" className="bg-slate-900 text-slate-200">
+              <option value="synthetic-demo" className="bg-white text-slate-800">
                 Synthetic Test Dataset
               </option>
+              {isImported && (
+                <option value="user-import" className="bg-white text-slate-800">
+                  User-Imported FIRMS Dataset
+                </option>
+              )}
             </select>
           </div>
 
           {/* Provenance Badge */}
           <div
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono font-medium ${
+            className={`flex items-center gap-1 px-2 py-1 rounded border text-[11px] font-mono ${
               isAuthentic
-                ? 'bg-emerald-950/40 border-emerald-700/50 text-emerald-400'
-                : 'bg-amber-950/40 border-amber-700/50 text-amber-400'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : isImported
+                ? 'bg-sky-50 border-sky-200 text-sky-800'
+                : 'bg-amber-50 border-amber-200 text-amber-800'
             }`}
             title={metadata.limitations}
           >
             {isAuthentic ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>NASA FIRMS Historical Sample</span>
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span>FIRMS Sample Archive</span>
+              </>
+            ) : isImported ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 text-sky-600" />
+                <span>User-Imported FIRMS</span>
               </>
             ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Synthetic Demo Data</span>
-              </>
+              <span>Synthetic Calibration Data</span>
             )}
           </div>
 
-          {/* Science & Methodology Button */}
+          {/* Import Button */}
+          <button
+            onClick={onOpenImport}
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition cursor-pointer"
+            title="Import NASA FIRMS CSV or JSON"
+          >
+            <Upload className="w-3.5 h-3.5 text-slate-600" />
+            <span>Import</span>
+          </button>
+
+          {/* Methodology Button */}
           <button
             onClick={onOpenMethodology}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-medium transition cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition cursor-pointer"
           >
-            <Info className="w-4 h-4 text-cyan-400" />
+            <Info className="w-3.5 h-3.5 text-scientific-teal-700" />
             <span>Methodology</span>
           </button>
         </div>

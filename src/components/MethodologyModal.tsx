@@ -10,97 +10,97 @@ export const MethodologyModal: React.FC<MethodologyModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200 rounded-lg max-w-2xl w-full max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-orange-400" />
-            <h3 className="text-base font-bold text-white">Scientific Methodology & Limitations</h3>
+            <BookOpen className="w-4 h-4 text-scientific-teal-700" />
+            <h3 className="text-sm font-bold text-slate-900">Scientific Methodology, Data Provenance & Caveats</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="px-6 py-5 overflow-y-auto space-y-5 text-xs text-slate-300 leading-relaxed">
+        {/* Body */}
+        <div className="px-5 py-4 overflow-y-auto space-y-4 text-xs text-slate-600 leading-relaxed">
           {/* Section 1 */}
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <Satellite className="w-4 h-4 text-cyan-400" />
-              1. MODIS vs. VIIRS Detection Characteristics
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 font-mono">
+              <Satellite className="w-3.5 h-3.5 text-scientific-teal-700" />
+              1. MODIS vs. VIIRS Sensor Characteristics
             </h4>
-            <ul className="list-disc list-inside space-y-1.5 text-slate-300 pl-1">
-              <li>
-                <strong>MODIS (Terra & Aqua):</strong> 1 km nadir resolution, expanding to ~2x4.8 km at scan edges. Detects middle-infrared thermal anomalies (Channels 21/22 and 31). Outputs 0–100% Bayesian confidence.
-              </li>
-              <li>
-                <strong>VIIRS (Suomi-NPP & NOAA-20/21):</strong> 375 m nadir resolution (I-bands I4/I5) with pixel aggregation to maintain consistent resolution across the swath. Highly sensitive to small or cool agricultural fires. Outputs categorical confidence (low, nominal, high).
-              </li>
-              <li>
-                <strong>Resolution Gap:</strong> A single 1 km MODIS pixel corresponds geographically to 4–12 VIIRS 375 m pixels.
-              </li>
-            </ul>
+            <div className="space-y-1.5 text-slate-600">
+              <p>
+                <strong>MODIS (Terra & Aqua):</strong> Standard resolution of 1 km at nadir, swelling to ~2×4.8 km at scan edges. Measures mid-infrared (3.96 µm) and thermal (11.0 µm) bands. Outputs Bayesian confidence (0–100%) and Fire Radiative Power (MW).
+              </p>
+              <p>
+                <strong>VIIRS (Suomi-NPP, NOAA-20, NOAA-21):</strong> 375 m resolution imaging channels (I-bands I4/I5). Uses onboard pixel aggregation to constrain pixel growth across scan swaths (~800 m at scan edge). Highly sensitive to sub-pixel agricultural fires. Outputs categorical confidence (low, nominal, high).
+              </p>
+              <p className="text-[11px] text-slate-500 italic">
+                *Resolution Differential:* A single 1 km MODIS pixel geographically encloses between 4 and 12 VIIRS 375 m pixels.
+              </p>
+            </div>
           </div>
 
           {/* Section 2 */}
-          <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <Sliders className="w-4 h-4 text-orange-400" />
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 font-mono">
+              <Sliders className="w-3.5 h-3.5 text-amber-600" />
               2. Harmonization Clustering Heuristic
             </h4>
             <p className="mb-2">
-              PyroSync implements a deterministic spatio-temporal connected-component clustering algorithm:
+              To consolidate concurrent detections across sensor passes into unified fire events, PyroSync executes a spatio-temporal connected-component clustering algorithm:
             </p>
-            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] space-y-1">
-              <div><strong>Spatial Criterion:</strong> Haversine distance &le; 1.25 km (Prototype Default)</div>
-              <div><strong>Temporal Criterion:</strong> Acquisition delta &le; 180 min (3 Hours)</div>
-              <div><strong>Output:</strong> Centroid coordinates, total FRP, dual-sensor confirmation status</div>
+            <div className="bg-slate-50 p-2.5 rounded border border-slate-200 font-mono text-[11px] space-y-1 text-slate-800">
+              <div>• <strong>Spatial Distance Threshold:</strong> Haversine spherical distance &le; 1.25 km (Prototype Default)</div>
+              <div>• <strong>Temporal Window Threshold:</strong> Observation time delta &le; 180 min / 3 hours (Prototype Default)</div>
+              <div>• <strong>Dual-Matched Status:</strong> Flagged if at least 1 MODIS detection and 1 VIIRS detection co-occur within the threshold envelope.</div>
             </div>
-            <p className="mt-2 text-slate-400">
-              *Provenance Preservation:* Raw observations are never discarded or permanently averaged. Every cluster retains full access to its constituent satellite observations.
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              *Provenance Guarantee:* Original raw MODIS and VIIRS records are never discarded or permanently altered. Every cluster retains its complete constituent observation array.
             </p>
           </div>
 
           {/* Section 3 */}
-          <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 font-mono">
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
               3. Unusual Condition Anomaly Detection
             </h4>
-            <p>
-              Daily fire cluster frequencies are compared against the regional baseline mean (&mu;) and sample standard deviation (&sigma;). Days with activity exceeding &mu; + 1.5&sigma; are flagged as <em>Unusual Conditions</em>.
+            <p className="mb-1.5">
+              Daily fire cluster frequencies are compared against the regional baseline mean (&mu;) and sample standard deviation (&sigma;). Days exceeding &mu; + 1.5&sigma; are flagged as <em>Unusual Conditions</em>.
             </p>
-            <div className="mt-2 p-3 rounded-lg bg-amber-950/30 border border-amber-800/50 text-amber-200/90">
-              <strong>CRITICAL SCIENTIFIC CAVEAT:</strong>
-              Statistical anomalies reflect heightened detection density relative to the historical sample. They DO NOT constitute verified disaster declarations or confirm on-the-ground burn damage, as variations in cloud cover, smoke dispersion, and sensor viewing angles directly influence detection rates.
+            <div className="p-2.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+              <strong>SCIENTIFIC DISCLAIMER:</strong>
+              Statistical anomalies reflect detection spikes relative to the sample average. They DO NOT prove an official emergency or confirm on-the-ground burn damage, as variations in cloud cover, smoke plumes, and viewing geometry influence satellite detection rates.
             </div>
           </div>
 
           {/* Section 4 */}
-          <div className="pt-2 border-t border-slate-800">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">
-              Data Citations & Attributions
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-1.5 font-mono">
+              Attributions & References
             </h4>
-            <div className="text-[11px] text-slate-400 space-y-1">
+            <div className="text-[11px] text-slate-600 space-y-1">
               <div>• <strong>NASA FIRMS:</strong> NASA LANCE / EOSDIS Fire Information for Resource Management System.</div>
-              <div>• <strong>Basemap:</strong> CartoDB Dark Matter & OpenStreetMap contributors.</div>
-              <div>• <strong>Libraries:</strong> Leaflet, React, TypeScript, Tailwind CSS, Lucide Icons.</div>
+              <div>• <strong>Basemap:</strong> OpenStreetMap contributors. Standard raster tiles: <code className="bg-slate-100 px-1 py-0.5 rounded">https://tile.openstreetmap.org/&#123;z&#125;/&#123;x&#125;/&#123;y&#125;.png</code>.</div>
+              <div>• <strong>Open Source Libraries:</strong> Leaflet, React, TypeScript, Vite, Tailwind CSS, Lucide Icons.</div>
             </div>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/60 flex justify-end">
+        {/* Footer */}
+        <div className="px-5 py-2.5 border-t border-slate-200 bg-slate-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-xs transition cursor-pointer"
+            className="px-4 py-1 rounded bg-scientific-teal-700 hover:bg-scientific-teal-800 text-white font-medium text-xs transition cursor-pointer"
           >
-            Acknowledge & Close
+            Close
           </button>
         </div>
       </div>

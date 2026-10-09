@@ -6,8 +6,9 @@ import { MapView } from './components/MapView';
 import { DailyDetailPanel } from './components/DailyDetailPanel';
 import { AnomalyAlertBanner } from './components/AnomalyAlertBanner';
 import { MethodologyModal } from './components/MethodologyModal';
+import { DataImportModal } from './components/DataImportModal';
 import { AREAS_OF_INTEREST, DATASET_METADATA } from './services/dataLoader';
-import type { RawHotspot, HarmonizedCluster, DailySummary, HarmonizationConfig } from './types/fire';
+import type { RawHotspot, HarmonizedCluster, DailySummary, HarmonizationConfig, DatasetMetadata } from './types/fire';
 import { isWithinBounds } from './utils/geo';
 import { harmonizeHotspots } from './utils/harmonization';
 import { calculateBaseline } from './utils/statistics';
@@ -16,8 +17,9 @@ export function App() {
   const [selectedAoi, setSelectedAoi] = useState(AREAS_OF_INTEREST[0]);
   const [activeDatasetId, setActiveDatasetId] = useState('firms-sample');
   const [allHotspots, setAllHotspots] = useState<RawHotspot[]>([]);
+  const [importedMetadata, setImportedMetadata] = useState<DatasetMetadata | null>(null);
 
-  // Calendar State
+  // Calendar Navigation State
   const [selectedYear, setSelectedYear] = useState(2024);
   const [selectedMonth, setSelectedMonth] = useState(3); // March (Peak dry season)
   const [selectedDateStr, setSelectedDateStr] = useState('2024-03-15');
@@ -36,10 +38,14 @@ export function App() {
   });
   const [selectedCluster, setSelectedCluster] = useState<HarmonizedCluster | null>(null);
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Fetch Dataset on mount or source toggle
   useEffect(() => {
     async function loadData() {
+      if (activeDatasetId === 'user-import' && importedMetadata) {
+        return; // Already in memory
+      }
       try {
         const filePath =
           activeDatasetId === 'firms-sample'
@@ -50,11 +56,19 @@ export function App() {
         const data: RawHotspot[] = await res.json();
         setAllHotspots(data);
       } catch (err) {
-        console.error('Failed to load dataset, using fallback', err);
+        console.error('Failed to load dataset', err);
       }
     }
     loadData();
   }, [activeDatasetId]);
+
+  // Current Dataset Metadata
+  const currentMetadata: DatasetMetadata = useMemo(() => {
+    if (activeDatasetId === 'user-import' && importedMetadata) {
+      return importedMetadata;
+    }
+    return DATASET_METADATA[activeDatasetId] || DATASET_METADATA['firms-sample'];
+  }, [activeDatasetId, importedMetadata]);
 
   // 1. Filter raw observations for the current Area of Interest
   const aoiHotspots = useMemo(() => {
@@ -69,11 +83,11 @@ export function App() {
     return harmonizeHotspots(aoiHotspots, harmonizationConfig);
   }, [aoiHotspots, harmonizationConfig]);
 
-  // 3. Compute Daily Summaries across the observation period
-  const { dailySummariesMap, dailySummariesList } = useMemo(() => {
+  // 3. Dynamic Date Range & Daily Summaries across the active month and observation baseline
+  const { dailySummariesMap, currentMonthSummaries, baselineSummariesList } = useMemo(() => {
     const map = new Map<string, DailySummary>();
 
-    // Index hotspots by date
+    // Index hotspots and clusters by date string (YYYY-MM-DD)
     const hotspotsByDate = new Map<string, RawHotspot[]>();
     for (const h of aoiHotspots) {
       const list = hotspotsByDate.get(h.acq_date) || [];
@@ -81,7 +95,6 @@ export function App() {
       hotspotsByDate.set(h.acq_date, list);
     }
 
-    // Index clusters by date
     const clustersByDate = new Map<string, HarmonizedCluster[]>();
     for (const c of aoiClusters) {
       const list = clustersByDate.get(c.date) || [];
@@ -89,18 +102,11 @@ export function App() {
       clustersByDate.set(c.date, list);
     }
 
-    // Determine observation range: Feb 1 to Apr 30, 2024 (90 days)
-    const startDate = new Date(Date.UTC(2024, 1, 1));
-    const totalDays = 90;
-    const list: DailySummary[] = [];
+    const earliestDate = currentMetadata.earliestDate;
+    const latestDate = currentMetadata.latestDate;
 
-    for (let d = 0; d < totalDays; d++) {
-      const curDate = new Date(startDate.getTime() + d * 86400000);
-      const year = curDate.getUTCFullYear();
-      const month = curDate.getUTCMonth() + 1;
-      const day = curDate.getUTCDate();
-      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
+    // Helper to build a daily summary
+    const buildSummaryForDate = (dateStr: string, y: number, m: number, d: number): DailySummary => {
       const dayHotspots = hotspotsByDate.get(dateStr) || [];
       const dayClusters = clustersByDate.get(dateStr) || [];
 
@@ -114,42 +120,68 @@ export function App() {
       }
 
       const dualConfirmedCount = dayClusters.filter((c) => c.isDualConfirmed).length;
+      const isWithinCoverage = dateStr >= earliestDate && dateStr <= latestDate;
 
-      // Check if day was a known satellite gap day in the sample (day 14, 68)
-      const isMissingPass = d === 14 || d === 68;
-
-      const summary: DailySummary = {
+      return {
         date: dateStr,
-        year,
-        month,
-        day,
+        year: y,
+        month: m,
+        day: d,
         modisCount,
         viirsCount,
         clusterCount: dayClusters.length,
         dualConfirmedCount,
         totalFrp: Math.round(totalFrp * 10) / 10,
-        isUnusual: false, // will be updated with baseline below
+        isUnusual: false,
         anomalyScore: 0,
-        hasData: !isMissingPass,
+        hasData: isWithinCoverage,
+        isUnavailable: !isWithinCoverage,
       };
+    };
 
+    // A. Generate for the entire selected month (to render calendar cells)
+    const daysInSelectedMonth = new Date(Date.UTC(selectedYear, selectedMonth, 0)).getUTCDate();
+    const monthList: DailySummary[] = [];
+
+    for (let day = 1; day <= daysInSelectedMonth; day++) {
+      const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const summary = buildSummaryForDate(dateStr, selectedYear, selectedMonth, day);
       map.set(dateStr, summary);
-      list.push(summary);
+      monthList.push(summary);
     }
 
-    return { dailySummariesMap: map, dailySummariesList: list };
-  }, [aoiHotspots, aoiClusters]);
+    // B. Build list for baseline calculation (covering all dates in the loaded dataset extent)
+    const baselineList: DailySummary[] = [];
+    if (earliestDate && latestDate) {
+      const start = new Date(`${earliestDate}T00:00:00Z`);
+      const end = new Date(`${latestDate}T00:00:00Z`);
+      const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+
+      for (let i = 0; i < Math.min(diffDays, 365); i++) {
+        const cur = new Date(start.getTime() + i * 86400000);
+        const y = cur.getUTCFullYear();
+        const m = cur.getUTCMonth() + 1;
+        const d = cur.getUTCDate();
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const summary = map.get(dateStr) || buildSummaryForDate(dateStr, y, m, d);
+        map.set(dateStr, summary);
+        baselineList.push(summary);
+      }
+    }
+
+    return { dailySummariesMap: map, currentMonthSummaries: monthList, baselineSummariesList: baselineList };
+  }, [aoiHotspots, aoiClusters, selectedYear, selectedMonth, currentMetadata]);
 
   // 4. Compute Statistical Baseline
   const baseline = useMemo(() => {
-    return calculateBaseline(dailySummariesList);
-  }, [dailySummariesList]);
+    return calculateBaseline(baselineSummariesList);
+  }, [baselineSummariesList]);
 
-  // 5. Annotate Daily Summaries with Anomaly Status
+  // 5. Annotate Summaries with Anomaly Status
   useEffect(() => {
-    if (baseline.thresholdCount > 0) {
-      dailySummariesList.forEach((d) => {
-        if (d.hasData && d.clusterCount >= baseline.thresholdCount && d.clusterCount > 0) {
+    if (baseline.isBaselineSufficient && baseline.thresholdCount > 0) {
+      dailySummariesMap.forEach((d) => {
+        if (d.hasData && !d.isUnavailable && d.clusterCount >= baseline.thresholdCount && d.clusterCount > 0) {
           d.isUnusual = true;
           d.anomalyScore =
             baseline.stdDev > 0 ? (d.clusterCount - baseline.meanDailyCount) / baseline.stdDev : 0;
@@ -159,9 +191,9 @@ export function App() {
         }
       });
     }
-  }, [baseline, dailySummariesList]);
+  }, [baseline, dailySummariesMap]);
 
-  // 6. Slices for Selected Date
+  // 6. Active Date Slices
   const currentDayHotspots = useMemo(() => {
     return aoiHotspots.filter((h) => h.acq_date === selectedDateStr);
   }, [aoiHotspots, selectedDateStr]);
@@ -172,21 +204,53 @@ export function App() {
 
   const selectedDaySummary = dailySummariesMap.get(selectedDateStr);
 
-  // Month slice for historical chart (matching current month)
-  const currentMonthSummaries = useMemo(() => {
-    return dailySummariesList.filter(
-      (d) => d.year === selectedYear && d.month === selectedMonth
-    );
-  }, [dailySummariesList, selectedYear, selectedMonth]);
-
-  const currentMetadata = DATASET_METADATA[activeDatasetId] || DATASET_METADATA['firms-sample'];
-
   const toggleLayer = (layer: 'modis' | 'viirs' | 'clusters') => {
     setLayerVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }));
   };
 
+  const handleJumpToCoverage = () => {
+    if (!currentMetadata.earliestDate) return;
+    const [y, m] = currentMetadata.earliestDate.split('-').map(Number);
+    setSelectedYear(y);
+    setSelectedMonth(m);
+    setSelectedDateStr(currentMetadata.earliestDate);
+  };
+
+  const handleImportSuccess = (
+    newHotspots: RawHotspot[],
+    earliest: string,
+    latest: string,
+    fileName: string
+  ) => {
+    setAllHotspots(newHotspots);
+    const meta: DatasetMetadata = {
+      id: 'user-import',
+      name: `Imported NASA FIRMS Data (${fileName})`,
+      provenanceType: 'user_import',
+      sourceCitation: `User-imported NASA FIRMS active fire telemetry from ${fileName}`,
+      retrievalDate: new Date().toISOString().slice(0, 10),
+      coveragePeriod: `${earliest} to ${latest}`,
+      geographicScope: 'User provided observation coordinates',
+      earliestDate: earliest,
+      latestDate: latest,
+      totalObservations: newHotspots.length,
+      limitations: 'Parsed client-side from user NASA FIRMS CSV/JSON file. Ensure proper coordinate bounding for selected AOI.',
+    };
+    setImportedMetadata(meta);
+    setActiveDatasetId('user-import');
+    setIsImportOpen(false);
+
+    // Jump to earliest date
+    if (earliest) {
+      const [y, m] = earliest.split('-').map(Number);
+      setSelectedYear(y);
+      setSelectedMonth(m);
+      setSelectedDateStr(earliest);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
       {/* Header */}
       <Header
         selectedAoi={selectedAoi}
@@ -201,15 +265,16 @@ export function App() {
           setSelectedCluster(null);
         }}
         onOpenMethodology={() => setIsMethodologyOpen(true)}
+        onOpenImport={() => setIsImportOpen(true)}
       />
 
       {/* Main Dashboard Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-4">
-        {/* Anomaly Surge Banner (if active day is an anomaly) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 space-y-3">
+        {/* Anomaly Surge Banner (if active day exceeds baseline) */}
         <AnomalyAlertBanner selectedDaySummary={selectedDaySummary} baseline={baseline} />
 
-        {/* Section 1: Burning Activity Calendar & Historical Time Series (Hero Core) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Section 1: Burning Activity Calendar & Historical Time Series */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* Central Burning Activity Calendar */}
           <div className="lg:col-span-7">
             <BurningCalendar
@@ -218,7 +283,6 @@ export function App() {
               onChangeMonth={(yr, mo) => {
                 setSelectedYear(yr);
                 setSelectedMonth(mo);
-                // Default to 15th of the new month
                 setSelectedDateStr(`${yr}-${String(mo).padStart(2, '0')}-15`);
               }}
               selectedDateStr={selectedDateStr}
@@ -231,6 +295,8 @@ export function App() {
               }}
               dailySummariesMap={dailySummariesMap}
               criticalThreshold={baseline.thresholdCount}
+              metadata={currentMetadata}
+              onJumpToCoverage={handleJumpToCoverage}
             />
           </div>
 
@@ -248,9 +314,9 @@ export function App() {
           </div>
         </div>
 
-        {/* Section 2: Synchronized Hotspot Map & Daily Activity Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Synchronized Hotspot Map */}
+        {/* Section 2: Interactive Leaflet Hotspot Map & Daily Activity Inspector */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          {/* Leaflet Map with OpenStreetMap Standard Raster Tiles */}
           <div className="lg:col-span-7">
             <MapView
               selectedAoi={selectedAoi}
@@ -264,12 +330,14 @@ export function App() {
             />
           </div>
 
-          {/* Daily Detail & Harmonization Inspector */}
+          {/* Daily Activity Inspector & CSV Exporter */}
           <div className="lg:col-span-5">
             <DailyDetailPanel
               selectedDateStr={selectedDateStr}
+              selectedAoiName={selectedAoi.name}
               summary={selectedDaySummary}
               clusters={currentDayClusters}
+              rawHotspots={currentDayHotspots}
               selectedClusterId={selectedCluster?.id || null}
               onSelectCluster={setSelectedCluster}
               config={harmonizationConfig}
@@ -280,19 +348,24 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/70 text-slate-500 text-xs py-4 px-6 text-center">
+      <footer className="border-t border-slate-200 bg-white text-slate-500 text-xs py-3 px-6 mt-2">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
             <strong>PyroSync</strong> — NASA Space Apps Yangon Practice Round 2026 • Team <strong>NovaCore</strong>
           </div>
-          <div className="font-mono text-[11px] text-slate-400">
-            Harmonizing NASA MODIS & VIIRS Earth Observation Telemetry
+          <div className="text-[11px] text-slate-400">
+            Map tiles: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">OpenStreetMap contributors</a> • Active Fire Data: NASA FIRMS (MODIS & VIIRS)
           </div>
         </div>
       </footer>
 
-      {/* Scientific Methodology & Caveats Modal */}
+      {/* Modals */}
       <MethodologyModal isOpen={isMethodologyOpen} onClose={() => setIsMethodologyOpen(false)} />
+      <DataImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImportSuccess={handleImportSuccess}
+      />
     </div>
   );
 }

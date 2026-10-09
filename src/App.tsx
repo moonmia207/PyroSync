@@ -263,6 +263,13 @@ export function App() {
         onSelectDataset={(id) => {
           setActiveDatasetId(id);
           setSelectedCluster(null);
+          const meta = id === 'user-import' && importedMetadata ? importedMetadata : DATASET_METADATA[id];
+          if (meta?.earliestDate) {
+            const [y, m] = meta.earliestDate.split('-').map(Number);
+            setSelectedYear(y);
+            setSelectedMonth(m);
+            setSelectedDateStr(meta.earliestDate);
+          }
         }}
         onOpenMethodology={() => setIsMethodologyOpen(true)}
         onOpenImport={() => setIsImportOpen(true)}

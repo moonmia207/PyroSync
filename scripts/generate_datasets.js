@@ -23,9 +23,9 @@ const aois = [
 const records = [];
 let idCounter = 1000;
 
-// Generate 90 days from Feb 1, 2024 to Apr 30, 2024
-const startDate = new Date(Date.UTC(2024, 1, 1)); // Feb 1, 2024
-const totalDays = 90;
+// Generate 121 days from Jan 1, 2024 to Apr 30, 2024
+const startDate = new Date(Date.UTC(2024, 0, 1)); // Jan 1, 2024
+const totalDays = 121;
 
 for (let d = 0; d < totalDays; d++) {
   const curDate = new Date(startDate.getTime() + d * 86400000);
@@ -34,44 +34,45 @@ for (let d = 0; d < totalDays; d++) {
   const day = curDate.getUTCDate();
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-  // Seasonal curve: peak in mid-late March (days 35 to 55)
-  let seasonalFactor = 0.2;
-  if (d >= 20 && d < 35) seasonalFactor = 0.5 + (d - 20) * 0.03; // Ramping up late Feb
-  else if (d >= 35 && d <= 55) seasonalFactor = 0.85 + Math.sin((d - 35) / 20 * Math.PI) * 0.45; // Peak March
-  else if (d > 55 && d < 75) seasonalFactor = 0.7 - (d - 55) * 0.02; // Tapering April
-  else if (d >= 75) seasonalFactor = 0.25;
+  // Seasonal curve:
+  // Jan (days 0-30): Low activity baseline (shifting cultivation prep)
+  // Feb (days 31-59): Building up
+  // Mar (days 60-90): Peak dry season fire wave
+  // Apr (days 91-120): Tapering off before monsoon
+  let seasonalFactor = 0.15;
+  if (d < 31) seasonalFactor = 0.12 + (d / 31) * 0.15; // January ramp
+  else if (d >= 31 && d < 60) seasonalFactor = 0.35 + ((d - 31) / 29) * 0.35; // February ramp
+  else if (d >= 60 && d <= 90) seasonalFactor = 0.85 + Math.sin(((d - 60) / 30) * Math.PI) * 0.45; // Peak March
+  else if (d > 90) seasonalFactor = 0.7 - ((d - 90) / 30) * 0.45; // April taper
 
-  // Occasional missing satellite pass / cloud occlusion (e.g., day 14, day 68)
-  if (d === 14 || d === 68) {
-    continue; // No detections recorded
+  // Occasional missing satellite pass / cloud occlusion (e.g. day 14, day 45, day 98)
+  if (d === 14 || d === 45 || d === 98) {
+    continue; // Satellite coverage gap
   }
 
-  // Rare surge / critical burning condition day (e.g., March 15, March 22)
-  if (d === 43 || d === 50) {
+  // Rare surge days (e.g. day 74 = Mar 15, day 81 = Mar 22)
+  if (d === 74 || d === 81) {
     seasonalFactor *= 2.0;
   }
 
   for (const aoi of aois) {
-    // Number of fire clusters in this AOI today
     const clusterCount = Math.floor(seasonalFactor * (3 + random() * 8));
 
     for (let c = 0; c < clusterCount; c++) {
-      // Base center for this fire incident
       const baseLat = aoi.minLat + random() * (aoi.maxLat - aoi.minLat);
       const baseLon = aoi.minLon + random() * (aoi.maxLon - aoi.minLon);
-      const isDual = random() > 0.35; // 65% chance of being co-detected by both instruments
+      const isDual = random() > 0.35;
 
-      // Acquisition time for afternoon pass: ~06:30 - 07:45 UTC (13:00 - 14:15 local)
       const passHour = 6 + Math.floor(random() * 2);
       const passMin = Math.floor(random() * 59);
       const timeStr = `${String(passHour).padStart(2, '0')}${String(passMin).padStart(2, '0')}`;
 
       const frpBase = 12 + random() * 85;
 
-      // 1. VIIRS detections (higher resolution, 1 to 4 detections per cluster)
+      // 1. VIIRS detections
       const viirsPoints = 1 + Math.floor(random() * 3);
       for (let vp = 0; vp < viirsPoints; vp++) {
-        const offsetLat = (random() - 0.5) * 0.008; // ~400m offset
+        const offsetLat = (random() - 0.5) * 0.008;
         const offsetLon = (random() - 0.5) * 0.008;
         const sat = random() > 0.5 ? 'NOAA-20' : 'Suomi-NPP';
         const confLevels = ['nominal', 'nominal', 'high', 'high', 'low'];
@@ -95,7 +96,7 @@ for (let d = 0; d < totalDays; d++) {
         });
       }
 
-      // 2. MODIS detections (if dual-detected or MODIS-only)
+      // 2. MODIS detections
       if (isDual || random() > 0.7) {
         const offsetLat = (random() - 0.5) * 0.006;
         const offsetLon = (random() - 0.5) * 0.006;
@@ -129,12 +130,12 @@ fs.writeFileSync(
   JSON.stringify(records, null, 2)
 );
 
-// 2. Synthetic demonstration dataset for edge cases
+// 2. Synthetic demonstration dataset
 const synthetic = [
   {
     id: 'syn-01',
-    latitude: 21.1500,
-    longitude: 97.3500,
+    latitude: 19.1200,
+    longitude: 99.0100,
     acq_date: '2024-03-15',
     acq_time: '0715',
     satellite: 'Aqua',
@@ -145,12 +146,12 @@ const synthetic = [
     bright_t31: 301.2,
     frp: 74.2,
     daynight: 'D',
-    area_id: 'shan-highlands'
+    area_id: 'chiang-mai-transboundary'
   },
   {
     id: 'syn-02',
-    latitude: 21.1525,
-    longitude: 97.3518,
+    latitude: 19.1225,
+    longitude: 99.0118,
     acq_date: '2024-03-15',
     acq_time: '0718',
     satellite: 'NOAA-20',
@@ -161,12 +162,12 @@ const synthetic = [
     bright_t31: 303.4,
     frp: 38.6,
     daynight: 'D',
-    area_id: 'shan-highlands'
+    area_id: 'chiang-mai-transboundary'
   },
   {
     id: 'syn-03',
-    latitude: 21.1480,
-    longitude: 97.3485,
+    latitude: 19.1180,
+    longitude: 99.0085,
     acq_date: '2024-03-15',
     acq_time: '0718',
     satellite: 'NOAA-20',
@@ -177,7 +178,7 @@ const synthetic = [
     bright_t31: 298.5,
     frp: 21.4,
     daynight: 'D',
-    area_id: 'shan-highlands'
+    area_id: 'chiang-mai-transboundary'
   }
 ];
 
@@ -186,4 +187,4 @@ fs.writeFileSync(
   JSON.stringify(synthetic, null, 2)
 );
 
-console.log(`Successfully generated ${records.length} historical sample records and ${synthetic.length} synthetic records.`);
+console.log(`Generated ${records.length} records covering Jan 1, 2024 to Apr 30, 2024.`);

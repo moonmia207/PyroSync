@@ -1,0 +1,50 @@
+[
+  {
+    "id": "syn-01",
+    "latitude": 21.15,
+    "longitude": 97.35,
+    "acq_date": "2024-03-15",
+    "acq_time": "0715",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
+    "confidence_raw": 92,
+    "confidence_normalized": "high",
+    "brightness": 348.5,
+    "bright_t31": 301.2,
+    "frp": 74.2,
+    "daynight": "D",
+    "area_id": "shan-highlands"
+  },
+  {
+    "id": "syn-02",
+    "latitude": 21.1525,
+    "longitude": 97.3518,
+    "acq_date": "2024-03-15",
+    "acq_time": "0718",
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "confidence_raw": "high",
+    "confidence_normalized": "high",
+    "brightness": 355.1,
+    "bright_t31": 303.4,
+    "frp": 38.6,
+    "daynight": "D",
+    "area_id": "shan-highlands"
+  },
+  {
+    "id": "syn-03",
+    "latitude": 21.148,
+    "longitude": 97.3485,
+    "acq_date": "2024-03-15",
+    "acq_time": "0718",
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "confidence_raw": "nominal",
+    "confidence_normalized": "nominal",
+    "brightness": 338,
+    "bright_t31": 298.5,
+    "frp": 21.4,
+    "daynight": "D",
+    "area_id": "shan-highlands"
+  }
+]

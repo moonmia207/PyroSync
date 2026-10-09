@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Seeded pseudo-random generator for reproducible datasets
-let seed = 42;
+let seed = 101;
 function random() {
   const x = Math.sin(seed++) * 10000;
   return x - Math.floor(x);
@@ -13,7 +13,7 @@ if (!fs.existsSync(publicDataDir)) {
   fs.mkdirSync(publicDataDir, { recursive: true });
 }
 
-// 1. Generate authentic-format historical sample for Shan Highlands, Central Dry Zone, Chiang Mai
+// Target AOIs: Shan Highlands, Central Dry Zone & Bago, Chiang Mai Transboundary
 const aois = [
   { id: 'shan-highlands', minLat: 20.3, maxLat: 21.9, minLon: 96.6, maxLon: 98.1 },
   { id: 'central-dry-zone', minLat: 17.6, maxLat: 19.7, minLon: 95.1, maxLon: 96.5 },
@@ -23,42 +23,70 @@ const aois = [
 const records = [];
 let idCounter = 1000;
 
-// Generate 121 days from Jan 1, 2024 to Apr 30, 2024
-const startDate = new Date(Date.UTC(2024, 0, 1)); // Jan 1, 2024
-const totalDays = 121;
+// Generate 2 full years: Jan 1, 2023 to Dec 31, 2024 (731 days)
+const startDate = new Date(Date.UTC(2023, 0, 1));
+const totalDays = 731;
 
 for (let d = 0; d < totalDays; d++) {
   const curDate = new Date(startDate.getTime() + d * 86400000);
   const year = curDate.getUTCFullYear();
-  const month = curDate.getUTCMonth() + 1;
+  const month = curDate.getUTCMonth() + 1; // 1 to 12
   const day = curDate.getUTCDate();
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-  // Seasonal curve:
-  // Jan (days 0-30): Low activity baseline (shifting cultivation prep)
-  // Feb (days 31-59): Building up
-  // Mar (days 60-90): Peak dry season fire wave
-  // Apr (days 91-120): Tapering off before monsoon
-  let seasonalFactor = 0.15;
-  if (d < 31) seasonalFactor = 0.12 + (d / 31) * 0.15; // January ramp
-  else if (d >= 31 && d < 60) seasonalFactor = 0.35 + ((d - 31) / 29) * 0.35; // February ramp
-  else if (d >= 60 && d <= 90) seasonalFactor = 0.85 + Math.sin(((d - 60) / 30) * Math.PI) * 0.45; // Peak March
-  else if (d > 90) seasonalFactor = 0.7 - ((d - 90) / 30) * 0.45; // April taper
+  // Southeast Asian seasonal fire regime:
+  // Jan: early dry season baseline
+  // Feb: ramping up
+  // Mar: peak burning window (El Niño boosts 2024)
+  // Apr: late season burns
+  // May: pre-monsoon drop
+  // Jun - Oct: southwest monsoon rains (near zero fires, overcast)
+  // Nov - Dec: post-monsoon harvest burning
+  let seasonalFactor = 0;
+  const isElNino2024 = year === 2024;
 
-  // Occasional missing satellite pass / cloud occlusion (e.g. day 14, day 45, day 98)
-  if (d === 14 || d === 45 || d === 98) {
-    continue; // Satellite coverage gap
+  if (month === 1) {
+    // January: Early season baseline (0.15 - 0.25)
+    seasonalFactor = 0.15 + (day / 31) * 0.12;
+  } else if (month === 2) {
+    // February: Accelerating agricultural burns (0.3 - 0.65)
+    seasonalFactor = 0.28 + (day / 28) * 0.38;
+  } else if (month === 3) {
+    // March: Peak wildfire and agricultural wave (0.75 - 1.35)
+    const midPeak = Math.sin((day / 31) * Math.PI);
+    seasonalFactor = (isElNino2024 ? 0.95 : 0.8) + midPeak * (isElNino2024 ? 0.5 : 0.4);
+  } else if (month === 4) {
+    // April: Late season burns (0.6 - 0.25)
+    seasonalFactor = 0.65 - (day / 30) * 0.38;
+  } else if (month === 5) {
+    // May: Pre-monsoon transition (0.2 - 0.05)
+    seasonalFactor = Math.max(0.2 - (day / 31) * 0.18, 0.02);
+  } else if (month >= 6 && month <= 10) {
+    // June to October: Monsoon season (near zero fire activity)
+    seasonalFactor = random() > 0.88 ? 0.04 : 0; // Very rare localized spot
+  } else if (month === 11) {
+    // November: Post-harvest clearing begins (0.05 - 0.15)
+    seasonalFactor = 0.04 + (day / 30) * 0.12;
+  } else if (month === 12) {
+    // December: Winter harvest stubble burning (0.12 - 0.22)
+    seasonalFactor = 0.14 + (day / 31) * 0.08;
   }
 
-  // Rare surge days (e.g. day 74 = Mar 15, day 81 = Mar 22)
-  if (d === 74 || d === 81) {
-    seasonalFactor *= 2.0;
+  // Periodic satellite coverage gaps / overcast days (e.g. 5% of days)
+  if (random() < 0.05 && month !== 3) {
+    continue;
+  }
+
+  // Statistically significant surge days in peak season (e.g. March 12-16, March 21-24)
+  if (month === 3 && (day === 14 || day === 15 || day === 22 || day === 23)) {
+    seasonalFactor *= 1.85;
   }
 
   for (const aoi of aois) {
-    const clusterCount = Math.floor(seasonalFactor * (3 + random() * 8));
+    const rawCount = Math.floor(seasonalFactor * (3 + random() * 8));
+    if (rawCount <= 0) continue;
 
-    for (let c = 0; c < clusterCount; c++) {
+    for (let c = 0; c < rawCount; c++) {
       const baseLat = aoi.minLat + random() * (aoi.maxLat - aoi.minLat);
       const baseLon = aoi.minLon + random() * (aoi.maxLon - aoi.minLon);
       const isDual = random() > 0.35;
@@ -66,10 +94,9 @@ for (let d = 0; d < totalDays; d++) {
       const passHour = 6 + Math.floor(random() * 2);
       const passMin = Math.floor(random() * 59);
       const timeStr = `${String(passHour).padStart(2, '0')}${String(passMin).padStart(2, '0')}`;
+      const frpBase = 14 + random() * 95;
 
-      const frpBase = 12 + random() * 85;
-
-      // 1. VIIRS detections
+      // 1. VIIRS detections (375m high resolution)
       const viirsPoints = 1 + Math.floor(random() * 3);
       for (let vp = 0; vp < viirsPoints; vp++) {
         const offsetLat = (random() - 0.5) * 0.008;
@@ -96,8 +123,8 @@ for (let d = 0; d < totalDays; d++) {
         });
       }
 
-      // 2. MODIS detections
-      if (isDual || random() > 0.7) {
+      // 2. MODIS detections (1km nadir)
+      if (isDual || random() > 0.65) {
         const offsetLat = (random() - 0.5) * 0.006;
         const offsetLon = (random() - 0.5) * 0.006;
         const sat = random() > 0.6 ? 'Aqua' : 'Terra';
@@ -130,61 +157,4 @@ fs.writeFileSync(
   JSON.stringify(records, null, 2)
 );
 
-// 2. Synthetic demonstration dataset
-const synthetic = [
-  {
-    id: 'syn-01',
-    latitude: 19.1200,
-    longitude: 99.0100,
-    acq_date: '2024-03-15',
-    acq_time: '0715',
-    satellite: 'Aqua',
-    instrument: 'MODIS',
-    confidence_raw: 92,
-    confidence_normalized: 'high',
-    brightness: 348.5,
-    bright_t31: 301.2,
-    frp: 74.2,
-    daynight: 'D',
-    area_id: 'chiang-mai-transboundary'
-  },
-  {
-    id: 'syn-02',
-    latitude: 19.1225,
-    longitude: 99.0118,
-    acq_date: '2024-03-15',
-    acq_time: '0718',
-    satellite: 'NOAA-20',
-    instrument: 'VIIRS',
-    confidence_raw: 'high',
-    confidence_normalized: 'high',
-    brightness: 355.1,
-    bright_t31: 303.4,
-    frp: 38.6,
-    daynight: 'D',
-    area_id: 'chiang-mai-transboundary'
-  },
-  {
-    id: 'syn-03',
-    latitude: 19.1180,
-    longitude: 99.0085,
-    acq_date: '2024-03-15',
-    acq_time: '0718',
-    satellite: 'NOAA-20',
-    instrument: 'VIIRS',
-    confidence_raw: 'nominal',
-    confidence_normalized: 'nominal',
-    brightness: 338.0,
-    bright_t31: 298.5,
-    frp: 21.4,
-    daynight: 'D',
-    area_id: 'chiang-mai-transboundary'
-  }
-];
-
-fs.writeFileSync(
-  path.join(publicDataDir, 'synthetic_demo.json'),
-  JSON.stringify(synthetic, null, 2)
-);
-
-console.log(`Generated ${records.length} records covering Jan 1, 2024 to Apr 30, 2024.`);
+console.log(`Generated ${records.length} records covering 2 full years (Jan 1, 2023 to Dec 31, 2024).`);

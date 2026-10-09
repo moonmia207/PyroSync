@@ -157,7 +157,7 @@ export function App() {
       const end = new Date(`${latestDate}T00:00:00Z`);
       const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
 
-      for (let i = 0; i < Math.min(diffDays, 365); i++) {
+      for (let i = 0; i < Math.min(diffDays, 1095); i++) {
         const cur = new Date(start.getTime() + i * 86400000);
         const y = cur.getUTCFullYear();
         const m = cur.getUTCMonth() + 1;

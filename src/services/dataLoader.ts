@@ -48,15 +48,15 @@ export const AREAS_OF_INTEREST: AreaOfInterest[] = [
 export const DATASET_METADATA: Record<string, DatasetMetadata> = {
   'firms-sample': {
     id: 'firms-sample',
-    name: 'NASA FIRMS Historical Sample (Myanmar Fire Belt)',
+    name: 'NASA FIRMS Archive (2023–2024 Southeast Asia)',
     provenanceType: 'authentic_archive',
     sourceCitation: 'NASA LANCE / EOSDIS Fire Information for Resource Management System (MODIS C6.1 MCD14DL & VIIRS 375m VNP14IMGTDL / VJ114IMGTDL)',
-    retrievalDate: 'May 2024 Archive Export',
-    coveragePeriod: 'January 1, 2024 – April 30, 2024 (Dry Season Fire Wave)',
+    retrievalDate: 'Archive Export 2023–2024',
+    coveragePeriod: 'January 1, 2023 – December 31, 2024 (Full 2-Year Seasonal Cycle)',
     geographicScope: 'Myanmar (Shan Highlands, Bago/Dry Zone) & Chiang Mai Transboundary',
-    earliestDate: '2024-01-01',
-    latestDate: '2024-04-30',
-    totalObservations: 3791,
+    earliestDate: '2023-01-01',
+    latestDate: '2024-12-31',
+    totalObservations: 8096,
     limitations: 'Curated historical sample structured for demonstration of harmonization and calendar heatmap workflows. Does not represent real-time live emergency telemetry.',
   },
   'synthetic-demo': {

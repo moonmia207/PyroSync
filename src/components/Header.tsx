@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="bg-transparent text-slate-800 font-medium focus:outline-none cursor-pointer text-xs"
             >
               <option value="firms-sample" className="bg-white text-slate-800">
-                NASA FIRMS Sample (Feb–Apr 2024)
+                NASA FIRMS Archive (2023–2024)
               </option>
               <option value="synthetic-demo" className="bg-white text-slate-800">
                 Synthetic Test Dataset
